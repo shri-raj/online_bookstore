@@ -12,43 +12,65 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
-    @Value("${jwt.expiration}")
+    // Update the secret key configuration
+    // Remove this line or make it optional
+    // @Value("${app.jwt.secret}")
+    // private String jwtSecret;
+    
+    // Add this property for JWT expiration
+    @Value("${jwt.expiration:86400000}")
     private long jwtExpirationInMs;
-
+    
+    // Replace your existing key initialization with this
     private Key key;
-
+    
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        // Generate a secure key for HS512 algorithm
+        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
     }
 
     public String generateToken(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+        
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
-
-        Map<String, Object> claims = new HashMap<>();
+        Date expiryDate = new Date(now.getTime() + 86400000);
+        
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(now)
+                .setSubject(userPrincipal.getUsername())
+                .setIssuedAt(new Date())
                 .setExpiration(expiryDate)
-                .signWith(key, SignatureAlgorithm.HS512)
+                .signWith(key)
                 .compact();
     }
 
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public String getUsernameFromJWT(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        
+        return claims.getSubject();
+    }
+
+    // Add this method to match what's being called in JwtAuthenticationFilter
     public String getUsernameFromToken(String token) {
-        return getClaimFromToken(token, Claims::getSubject);
+        return getUsernameFromJWT(token);
     }
 
     public Date getExpirationDateFromToken(String token) {
@@ -69,7 +91,7 @@ public class JwtTokenProvider {
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
+        final String username = getUsernameFromJWT(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 

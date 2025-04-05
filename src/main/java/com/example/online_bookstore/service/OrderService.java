@@ -191,4 +191,15 @@ public class OrderService {
         dto.setSubtotal(item.getSubtotal());
         return dto;
     }
+
+    /**
+     * Retrieves all orders in the system (for admin use)
+     * @return List of all orders
+     */
+    public List<OrderDto> getAllOrders() {
+        List<Order> orders = orderRepository.findAll();
+        return orders.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 }
