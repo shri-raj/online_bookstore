@@ -34,10 +34,8 @@ public class BookDto {
     private Integer stockQuantity;
 
     private String category;
-
-    // 4. DTO Improvements
     
-    // Add a constructor to simplify entity to DTO conversion
+    // Constructor to simplify entity to DTO conversion
     public BookDto(Book book) {
         this.id = book.getId();
         this.title = book.getTitle();
@@ -50,7 +48,7 @@ public class BookDto {
         this.category = book.getCategory();
     }
     
-    // Add a default no-args constructor to maintain compatibility
+    // Default no-args constructor to maintain compatibility
     public BookDto() {
     }
 }

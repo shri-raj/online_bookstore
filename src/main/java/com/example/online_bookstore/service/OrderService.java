@@ -4,6 +4,7 @@ import com.example.online_bookstore.dto.CheckoutRequest;
 import com.example.online_bookstore.dto.OrderDto;
 import com.example.online_bookstore.dto.OrderItemDto;
 import com.example.online_bookstore.entity.*;
+import com.example.online_bookstore.exception.BusinessLogicException;
 import com.example.online_bookstore.exception.ResourceNotFoundException;
 import com.example.online_bookstore.exception.UnauthorizedException;
 import com.example.online_bookstore.repo.*;
@@ -24,18 +25,21 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
     private final BookService bookService;
 
     public OrderService(OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository,
                         CartRepository cartRepository,
+                        CartItemRepository cartItemRepository,
                         UserRepository userRepository,
                         BookRepository bookRepository,
                         BookService bookService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartRepository = cartRepository;
+        this.cartItemRepository = cartItemRepository;
         this.userRepository = userRepository;
         this.bookService = bookService;
     }
@@ -61,7 +65,6 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
 
-        // Ensure order belongs to current user unless admin
         if (!order.getUser().getId().equals(user.getId()) && !"ADMIN".equals(user.getRole())) {
             throw new UnauthorizedException("You are not authorized to view this order");
         }
@@ -76,10 +79,9 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user: " + user.getId()));
 
         if (cart.getItems().isEmpty()) {
-            throw new IllegalStateException("Cannot create order with empty cart");
+            throw new BusinessLogicException("Cannot create order with empty cart"); // Changed from IllegalStateException
         }
 
-        // Create new order
         Order order = new Order();
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
@@ -87,19 +89,16 @@ public class OrderService {
         order.setShippingAddress(checkoutRequest.getShippingAddress());
         order.setPaymentMethod(checkoutRequest.getPaymentMethod());
 
-        // Calculate total amount and create order items
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : cart.getItems()) {
             Book book = cartItem.getBook();
 
-            // Check stock availability
             if (book.getStockQuantity() < cartItem.getQuantity()) {
-                throw new IllegalStateException("Not enough stock for book: " + book.getTitle());
+                throw new BusinessLogicException("Not enough stock for book: " + book.getTitle()); // Changed from IllegalStateException
             }
 
-            // Create order item
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setBook(book);
@@ -108,10 +107,8 @@ public class OrderService {
             orderItem.setQuantity(cartItem.getQuantity());
             orderItem.setPrice(book.getPrice());
 
-            // Update book stock
             bookService.updateBookStock(book.getId(), cartItem.getQuantity());
 
-            // Add to total
             totalAmount = totalAmount.add(orderItem.getSubtotal());
             orderItems.add(orderItem);
         }
@@ -119,17 +116,16 @@ public class OrderService {
         order.setTotalAmount(totalAmount);
         Order savedOrder = orderRepository.save(order);
 
-        // Save order items
         for (OrderItem item : orderItems) {
             item.setOrder(savedOrder);
             orderItemRepository.save(item);
             savedOrder.addOrderItem(item);
         }
 
-        // Clear cart
         List<CartItem> cartItems = new ArrayList<>(cart.getItems());
         for (CartItem item : cartItems) {
             cart.removeItem(item);
+            cartItemRepository.delete(item);
         }
         cart.setTotalPrice(BigDecimal.ZERO);
         cartRepository.save(cart);
@@ -145,11 +141,6 @@ public class OrderService {
             throw new UnauthorizedException("You are not authorized to view this order");
         }
 
-        // But in the same class, you're using RuntimeException:
-        if (!"ADMIN".equals(user.getRole())) {
-            throw new RuntimeException("You are not authorized to update order status");
-        }
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
 
@@ -159,7 +150,6 @@ public class OrderService {
         return convertToDto(updatedOrder);
     }
 
-    // Helper methods for DTO conversion
     private OrderDto convertToDto(Order order) {
         OrderDto orderDto = new OrderDto();
         orderDto.setId(order.getId());

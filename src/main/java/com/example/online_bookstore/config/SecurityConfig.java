@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.http.HttpMethod;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -47,8 +48,9 @@ public class SecurityConfig {
                     .contentSecurityPolicy(csp -> csp
                         .policyDirectives("default-src 'self'; frame-ancestors 'self'; form-action 'self'"))
                     .frameOptions(frame -> frame.sameOrigin())
-                    .xssProtection(xss -> xss.disable())
-                    .contentTypeOptions(contentType -> contentType.disable()))
+                    .addHeaderWriter((request, response) -> 
+                        response.setHeader("X-XSS-Protection", "1; mode=block"))
+                    .contentTypeOptions(contentType -> {}))
                 .build();
     }
 

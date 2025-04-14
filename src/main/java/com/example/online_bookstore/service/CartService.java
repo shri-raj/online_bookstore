@@ -105,7 +105,7 @@ public class CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with id: " + itemId));
 
         if (!item.getCart().getId().equals(cart.getId())) {
-            throw new RuntimeException("Cart item does not belong to the user's cart");
+            throw new UnauthorizedException("Cart item does not belong to the user's cart");
         }
 
         item.setQuantity(cartItemDto.getQuantity());

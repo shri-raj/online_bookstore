@@ -54,12 +54,6 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerUser(RegisterRequest registerRequest) {
-        // Change this:
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new RuntimeException("Email is already taken!");
-        }
-        
-        // To this:
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
             throw new BusinessLogicException("Email is already taken!");
         }

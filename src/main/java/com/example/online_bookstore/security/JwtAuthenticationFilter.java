@@ -18,10 +18,10 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Value("${jwt.header}")
+    @Value("${jwt.header:Authorization}")
     private String tokenHeader;
 
-    @Value("${jwt.prefix}")
+    @Value("${jwt.prefix:Bearer }")
     private String tokenPrefix;
 
     private final JwtTokenProvider tokenProvider;

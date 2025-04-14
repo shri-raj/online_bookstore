@@ -2,7 +2,6 @@ package com.example.online_bookstore.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,33 +12,31 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
+import java.util.Base64;
 
 @Component
 public class JwtTokenProvider {
-
-    // Update the secret key configuration
-    // Remove this line or make it optional
-    // @Value("${app.jwt.secret}")
-    // private String jwtSecret;
     
-    // Add this property for JWT expiration
+    @Value("${jwt.secret:defaultSecretKeyForDevelopmentEnvironmentOnly}")
+    private String jwtSecret;
+    
     @Value("${jwt.expiration:86400000}")
     private long jwtExpirationInMs;
     
-    // Replace your existing key initialization with this
     private Key key;
     
     @PostConstruct
     public void init() {
-        // Generate a secure key for HS512 algorithm
-        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+        // Use a consistent key based on the secret property
+        byte[] keyBytes = Base64.getDecoder().decode(jwtSecret.getBytes());
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
         
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + 86400000);
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
         
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())

@@ -8,8 +8,7 @@ import com.example.online_bookstore.repo.BookRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,13 +40,23 @@ public class BookService {
     }
 
     public List<BookDto> searchBooks(String query) {
-        List<Book> titleResults = bookRepository.findByTitleContainingIgnoreCase(query);
-        List<Book> authorResults = bookRepository.findByAuthorContainingIgnoreCase(query);
-    
-        Set<Book> combinedResults = new HashSet<>(titleResults);
-        combinedResults.addAll(authorResults);
+        if (query == null || query.trim().isEmpty()) {
+            return getAllBooks();
+        }
         
-        return combinedResults.stream()
+        // Use a more efficient approach with a single pass through the results
+        List<Book> searchResults = new ArrayList<>();
+        searchResults.addAll(bookRepository.findByTitleContainingIgnoreCase(query));
+        
+        // Add author results that aren't already included
+        List<Book> authorResults = bookRepository.findByAuthorContainingIgnoreCase(query);
+        for (Book book : authorResults) {
+            if (!searchResults.contains(book)) {
+                searchResults.add(book);
+            }
+        }
+        
+        return searchResults.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
